@@ -16,7 +16,8 @@ import {
   X,
   Target,
   Sparkles,
-  Layers
+  Layers,
+  ChevronRight
 } from 'lucide-react';
 
 export default function SearchResultsPage({
@@ -28,12 +29,30 @@ export default function SearchResultsPage({
   onSelectScheme,
   onExecuteSearch
 }) {
-  const [searchInput, setSearchInput] = useState(searchQuery || 'scholarship for students');
+  const [searchInput, setSearchInput] = useState(searchQuery || '');
   const [activeTypeFilter, setActiveTypeFilter] = useState('all');
+  const [visibleCount, setVisibleCount] = useState(25);
 
   const handleSearchSubmit = (e) => {
     e.preventDefault();
+    setVisibleCount(25);
     onExecuteSearch(searchInput);
+  };
+
+  const handleClear = () => {
+    setSearchInput('');
+    setVisibleCount(25);
+    onExecuteSearch('');
+  };
+
+  const handleTypeFilterChange = (type) => {
+    setActiveTypeFilter(type);
+    setVisibleCount(25);
+  };
+
+  const handleSortChange = (newSort) => {
+    setSortBy(newSort);
+    setVisibleCount(25);
   };
 
   // Group and count results by match type
@@ -68,19 +87,23 @@ export default function SearchResultsPage({
     return results;
   }, [activeTypeFilter, results, exactMatches, similarMatches, relatedMatches, approxMatches]);
 
+  const visibleResults = useMemo(() => {
+    return displayedResults.slice(0, visibleCount);
+  }, [displayedResults, visibleCount]);
+
   const getSchemeIcon = (categoryKey, category) => {
     const cat = (categoryKey || category || '').toLowerCase();
     if (cat.includes('student') || cat.includes('education')) {
       return <GraduationCap size={26} className="text-blue-600" />;
-    } else if (cat.includes('farmer') || cat.includes('agri')) {
+    } else if (cat.includes('farmer') || cat.includes('agri') || cat.includes('fisher')) {
       return <Sprout size={26} className="text-emerald-600" />;
-    } else if (cat.includes('women')) {
+    } else if (cat.includes('women') || cat.includes('girl')) {
       return <UserCheck size={26} className="text-rose-500" />;
-    } else if (cat.includes('unemployed') || cat.includes('labor') || cat.includes('skill')) {
+    } else if (cat.includes('unemployed') || cat.includes('labor') || cat.includes('skill') || cat.includes('job')) {
       return <Briefcase size={26} className="text-sky-600" />;
-    } else if (cat.includes('senior') || cat.includes('welfare') || cat.includes('social')) {
+    } else if (cat.includes('senior') || cat.includes('welfare') || cat.includes('social') || cat.includes('pension')) {
       return <Users size={26} className="text-indigo-600" />;
-    } else if (cat.includes('health')) {
+    } else if (cat.includes('health') || cat.includes('medical')) {
       return <HeartPulse size={26} className="text-teal-600" />;
     }
     return <Building2 size={26} className="text-blue-600" />;
@@ -129,7 +152,7 @@ export default function SearchResultsPage({
               <input
                 type="text"
                 className="results-input"
-                placeholder="Search schemes by need, eligibility, or keywords..."
+                placeholder="Search all 3,400+ schemes by need, eligibility, or keywords..."
                 value={searchInput}
                 onChange={(e) => setSearchInput(e.target.value)}
               />
@@ -137,10 +160,7 @@ export default function SearchResultsPage({
                 <button
                   type="button"
                   className="clear-input-btn"
-                  onClick={() => {
-                    setSearchInput('');
-                    onExecuteSearch('');
-                  }}
+                  onClick={handleClear}
                   aria-label="Clear search text"
                 >
                   <X size={16} />
@@ -158,7 +178,7 @@ export default function SearchResultsPage({
           <div className="relevance-tabs-bar">
             <button
               className={`relevance-tab ${activeTypeFilter === 'all' ? 'active' : ''}`}
-              onClick={() => setActiveTypeFilter('all')}
+              onClick={() => handleTypeFilterChange('all')}
             >
               <Layers size={14} />
               <span>All Results ({results.length})</span>
@@ -167,7 +187,7 @@ export default function SearchResultsPage({
             {exactMatches.length > 0 && (
               <button
                 className={`relevance-tab tab-exact ${activeTypeFilter === 'exact' ? 'active' : ''}`}
-                onClick={() => setActiveTypeFilter('exact')}
+                onClick={() => handleTypeFilterChange('exact')}
               >
                 <Target size={14} />
                 <span>Exact Matches ({exactMatches.length})</span>
@@ -177,7 +197,7 @@ export default function SearchResultsPage({
             {similarMatches.length > 0 && (
               <button
                 className={`relevance-tab tab-similar ${activeTypeFilter === 'similar' ? 'active' : ''}`}
-                onClick={() => setActiveTypeFilter('similar')}
+                onClick={() => handleTypeFilterChange('similar')}
               >
                 <Sparkles size={14} />
                 <span>Highly Similar ({similarMatches.length})</span>
@@ -187,7 +207,7 @@ export default function SearchResultsPage({
             {relatedMatches.length > 0 && (
               <button
                 className={`relevance-tab tab-related ${activeTypeFilter === 'related' ? 'active' : ''}`}
-                onClick={() => setActiveTypeFilter('related')}
+                onClick={() => handleTypeFilterChange('related')}
               >
                 <span>Related Schemes ({relatedMatches.length})</span>
               </button>
@@ -196,7 +216,7 @@ export default function SearchResultsPage({
             {approxMatches.length > 0 && (
               <button
                 className={`relevance-tab tab-approx ${activeTypeFilter === 'approx' ? 'active' : ''}`}
-                onClick={() => setActiveTypeFilter('approx')}
+                onClick={() => handleTypeFilterChange('approx')}
               >
                 <span>Approximate ({approxMatches.length})</span>
               </button>
@@ -207,7 +227,7 @@ export default function SearchResultsPage({
         {/* Results Metadata & Sorting Row */}
         <div className="results-meta-row">
           <p className="results-count-text">
-            Showing <strong>{displayedResults.length}</strong> of <strong>{results.length} schemes</strong> for "{searchQuery || 'all schemes'}"
+            Showing <strong>{Math.min(visibleResults.length, displayedResults.length)}</strong> of <strong>{displayedResults.length} schemes</strong> {displayedResults.length !== results.length ? `(${results.length} total)` : ''} for "{searchQuery || 'all schemes'}"
           </p>
 
           <div className="sort-by-wrapper">
@@ -215,7 +235,7 @@ export default function SearchResultsPage({
             <select
               className="sort-select"
               value={sortBy || 'score-desc'}
-              onChange={(e) => setSortBy(e.target.value)}
+              onChange={(e) => handleSortChange(e.target.value)}
             >
               <option value="score-desc">Best Match (Relevance)</option>
               <option value="score-asc">Score: Low to High</option>
@@ -234,16 +254,15 @@ export default function SearchResultsPage({
               <button
                 className="btn-primary mt-4"
                 onClick={() => {
-                  setActiveTypeFilter('all');
-                  setSearchInput('');
-                  onExecuteSearch('');
+                  handleTypeFilterChange('all');
+                  handleClear();
                 }}
               >
                 View All Schemes
               </button>
             </div>
           ) : (
-            displayedResults.map((scheme) => (
+            visibleResults.map((scheme) => (
               <div key={scheme.id} className="scheme-result-card">
                 <div className="scheme-card-inner">
                   {/* Left Column Icon */}
@@ -314,6 +333,28 @@ export default function SearchResultsPage({
             ))
           )}
         </div>
+
+        {/* Load More Pagination Controls */}
+        {displayedResults.length > visibleCount && (
+          <div className="load-more-section" style={{ textAlign: 'center', margin: '32px 0 48px 0' }}>
+            <button
+              className="btn-primary"
+              style={{ padding: '12px 28px', fontSize: '15px', borderRadius: '8px', display: 'inline-flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}
+              onClick={() => setVisibleCount((prev) => prev + 25)}
+            >
+              <span>Load More Schemes (Showing {visibleCount} of {displayedResults.length})</span>
+              <ChevronRight size={16} />
+            </button>
+            <div style={{ marginTop: '12px' }}>
+              <button
+                style={{ background: 'none', border: 'none', color: 'var(--color-primary-blue)', textDecoration: 'underline', cursor: 'pointer', fontSize: '14px', fontWeight: 600 }}
+                onClick={() => setVisibleCount(displayedResults.length)}
+              >
+                Show All {displayedResults.length} Schemes
+              </button>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

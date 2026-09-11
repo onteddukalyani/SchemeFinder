@@ -35,13 +35,13 @@ export default function SchemeDetailsPage({ scheme, onBack }) {
     const cat = (categoryKey || category || '').toLowerCase();
     if (cat.includes('student') || cat.includes('education')) {
       return <GraduationCap size={32} className="text-blue-600" />;
-    } else if (cat.includes('farmer') || cat.includes('agri')) {
+    } else if (cat.includes('farmer') || cat.includes('agri') || cat.includes('fisher')) {
       return <Sprout size={32} className="text-emerald-600" />;
-    } else if (cat.includes('women')) {
+    } else if (cat.includes('women') || cat.includes('girl')) {
       return <UserCheck size={32} className="text-rose-500" />;
-    } else if (cat.includes('unemployed') || cat.includes('labor') || cat.includes('skill')) {
+    } else if (cat.includes('unemployed') || cat.includes('labor') || cat.includes('skill') || cat.includes('job')) {
       return <Briefcase size={32} className="text-sky-600" />;
-    } else if (cat.includes('senior') || cat.includes('welfare') || cat.includes('social')) {
+    } else if (cat.includes('senior') || cat.includes('welfare') || cat.includes('social') || cat.includes('pension')) {
       return <Users size={32} className="text-indigo-600" />;
     }
     return <Building2 size={32} className="text-blue-600" />;
@@ -102,7 +102,7 @@ export default function SchemeDetailsPage({ scheme, onBack }) {
               </div>
               <div className="info-col-text">
                 <span className="info-col-label">Department</span>
-                <span className="info-col-value font-medium">{scheme.department}</span>
+                <span className="info-col-value font-medium">{scheme.department || scheme.category}</span>
                 {scheme.ministry && scheme.ministry !== scheme.department && (
                   <span className="info-col-sub">{scheme.ministry}</span>
                 )}
@@ -116,7 +116,7 @@ export default function SchemeDetailsPage({ scheme, onBack }) {
               </div>
               <div className="info-col-text">
                 <span className="info-col-label">Offered by</span>
-                <span className="info-col-value font-medium">{scheme.offeredBy}</span>
+                <span className="info-col-value font-medium">{scheme.offeredBy || 'Government of India'}</span>
               </div>
             </div>
 
@@ -128,12 +128,12 @@ export default function SchemeDetailsPage({ scheme, onBack }) {
               <div className="info-col-text">
                 <span className="info-col-label">Official Website</span>
                 <a
-                  href={scheme.officialWebsite}
+                  href={scheme.officialWebsite || 'https://www.myscheme.gov.in'}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="info-col-link"
                 >
-                  {scheme.officialWebsite}
+                  {scheme.officialWebsite || 'https://www.myscheme.gov.in'}
                 </a>
               </div>
             </div>
@@ -174,27 +174,27 @@ export default function SchemeDetailsPage({ scheme, onBack }) {
                   </div>
                   <div className="detail-row">
                     <span className="detail-key">Target Beneficiaries</span>
-                    <span className="detail-val">{scheme.targetBeneficiaries}</span>
+                    <span className="detail-val">{scheme.targetBeneficiaries || scheme.category}</span>
                   </div>
                   <div className="detail-row">
                     <span className="detail-key">Family Income Limit</span>
-                    <span className="detail-val">{scheme.familyIncomeLimit}</span>
+                    <span className="detail-val">{scheme.familyIncomeLimit || 'As per scheme norms'}</span>
                   </div>
                   <div className="detail-row">
                     <span className="detail-key">State</span>
-                    <span className="detail-val">{scheme.state}</span>
+                    <span className="detail-val">{scheme.state || 'All India'}</span>
                   </div>
                   <div className="detail-row">
                     <span className="detail-key">Application Mode</span>
-                    <span className="detail-val">{scheme.applicationMode}</span>
+                    <span className="detail-val">{scheme.applicationMode || 'Online / CSC Centers'}</span>
                   </div>
                   <div className="detail-row">
                     <span className="detail-key">Last Date to Apply</span>
-                    <span className="detail-val">{scheme.lastDateToApply}</span>
+                    <span className="detail-val">{scheme.lastDateToApply || 'Open Throughout Year'}</span>
                   </div>
                 </div>
 
-                {scheme.overview?.highlights && (
+                {scheme.overview?.highlights && scheme.overview.highlights.length > 0 && (
                   <div className="highlights-box">
                     <h4 className="highlights-title">Key Highlights</h4>
                     <ul className="highlights-list">
@@ -211,7 +211,7 @@ export default function SchemeDetailsPage({ scheme, onBack }) {
                 {/* Action button at bottom */}
                 <div className="tab-action-footer">
                   <a
-                    href={scheme.officialWebsite}
+                    href={scheme.officialWebsite || 'https://www.myscheme.gov.in'}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="btn-visit-website"
@@ -228,7 +228,7 @@ export default function SchemeDetailsPage({ scheme, onBack }) {
               <div className="tab-pane">
                 <h3 className="pane-heading">Eligibility Criteria</h3>
                 <div className="eligibility-list">
-                  {scheme.eligibilityDetails?.map((criterion, idx) => (
+                  {(scheme.eligibilityDetails || ['Open to eligible citizens meeting prescribed guidelines.']).map((criterion, idx) => (
                     <div key={idx} className="criterion-card">
                       <div className="criterion-num">{idx + 1}</div>
                       <p className="criterion-text">{criterion}</p>
@@ -243,7 +243,7 @@ export default function SchemeDetailsPage({ scheme, onBack }) {
               <div className="tab-pane">
                 <h3 className="pane-heading">Financial & Welfare Benefits</h3>
                 <div className="benefits-list">
-                  {scheme.benefitsDetails?.map((benefit, idx) => (
+                  {(scheme.benefitsDetails || ['Direct financial subsidy or welfare assistance as per government guidelines.']).map((benefit, idx) => (
                     <div key={idx} className="benefit-item">
                       <CheckCircle2 size={18} className="text-emerald-600 flex-shrink-0" />
                       <p className="benefit-text">{benefit}</p>
@@ -258,9 +258,9 @@ export default function SchemeDetailsPage({ scheme, onBack }) {
               <div className="tab-pane">
                 <h3 className="pane-heading">Step-by-Step Application Process</h3>
                 <div className="steps-timeline">
-                  {scheme.applicationProcess?.map((stepObj) => (
-                    <div key={stepObj.step} className="step-item">
-                      <div className="step-badge">Step {stepObj.step}</div>
+                  {(scheme.applicationProcess || [{ step: 1, title: 'Online Registration', desc: 'Visit the official government portal to apply.' }]).map((stepObj, sIdx) => (
+                    <div key={stepObj.step || sIdx + 1} className="step-item">
+                      <div className="step-badge">Step {stepObj.step || sIdx + 1}</div>
                       <div className="step-content">
                         <h4 className="step-title">{stepObj.title}</h4>
                         <p className="step-desc">{stepObj.desc}</p>
@@ -276,7 +276,7 @@ export default function SchemeDetailsPage({ scheme, onBack }) {
               <div className="tab-pane">
                 <h3 className="pane-heading">Documents Required</h3>
                 <div className="documents-grid">
-                  {scheme.documentsRequired?.map((doc, idx) => (
+                  {(scheme.documentsRequired || ['Aadhaar Card / ID Proof', 'Income / Category Certificate', 'Bank Passbook']).map((doc, idx) => (
                     <div key={idx} className="doc-card">
                       <FileText size={18} className="text-blue-600 flex-shrink-0" />
                       <span className="doc-title">{doc}</span>
@@ -298,7 +298,7 @@ export default function SchemeDetailsPage({ scheme, onBack }) {
                 </div>
                 <div className="summary-text">
                   <span className="summary-label">Eligibility</span>
-                  <p className="summary-value">{scheme.quickSummary.eligibility}</p>
+                  <p className="summary-value">{scheme.quickSummary?.eligibility || 'Eligible Applicants'}</p>
                 </div>
               </div>
 
@@ -308,7 +308,7 @@ export default function SchemeDetailsPage({ scheme, onBack }) {
                 </div>
                 <div className="summary-text">
                   <span className="summary-label">Benefits</span>
-                  <p className="summary-value">{scheme.quickSummary.benefits}</p>
+                  <p className="summary-value">{scheme.quickSummary?.benefits || 'Financial / Welfare Grant'}</p>
                 </div>
               </div>
 
@@ -318,7 +318,7 @@ export default function SchemeDetailsPage({ scheme, onBack }) {
                 </div>
                 <div className="summary-text">
                   <span className="summary-label">Income Limit</span>
-                  <p className="summary-value">{scheme.quickSummary.incomeLimit}</p>
+                  <p className="summary-value">{scheme.quickSummary?.incomeLimit || scheme.familyIncomeLimit || 'As per scheme norms'}</p>
                 </div>
               </div>
 
@@ -328,7 +328,7 @@ export default function SchemeDetailsPage({ scheme, onBack }) {
                 </div>
                 <div className="summary-text">
                   <span className="summary-label">Level</span>
-                  <p className="summary-value">{scheme.quickSummary.level}</p>
+                  <p className="summary-value">{scheme.quickSummary?.level || scheme.offeredBy || 'Central / State Government'}</p>
                 </div>
               </div>
             </div>

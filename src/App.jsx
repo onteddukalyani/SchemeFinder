@@ -10,16 +10,16 @@ import { SCHEMES_DATA } from './data/schemesData';
 export default function App() {
   const [activePage, setActivePage] = useState('home');
   const [searchQuery, setSearchQuery] = useState('scholarship for students');
-  const [selectedScheme, setSelectedScheme] = useState(SCHEMES_DATA[0]);
+  const [selectedScheme, setSelectedScheme] = useState(SCHEMES_DATA[0] || null);
   const [sortBy, setSortBy] = useState('score-desc');
   const [results, setResults] = useState(SCHEMES_DATA);
 
-  // Fetch results from backend when searchQuery or sortBy changes
+  // Fetch results whenever searchQuery or sortBy changes
   useEffect(() => {
     let isCurrent = true;
     async function getResults() {
       const response = await fetchSchemeResults(searchQuery, sortBy);
-      if (isCurrent) {
+      if (isCurrent && response?.results) {
         setResults(response.results);
       }
     }
@@ -29,9 +29,9 @@ export default function App() {
     };
   }, [searchQuery, sortBy]);
 
-  // Actions
+  // Actions & Navigation Handlers
   const handleSearch = (query) => {
-    setSearchQuery(query);
+    setSearchQuery(query || '');
     setActivePage('search');
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
@@ -47,9 +47,11 @@ export default function App() {
   };
 
   const handleSelectScheme = (scheme) => {
-    setSelectedScheme(scheme);
-    setActivePage('details');
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+    if (scheme) {
+      setSelectedScheme(scheme);
+      setActivePage('details');
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
   };
 
   const handleBackToResults = () => {
@@ -88,6 +90,7 @@ export default function App() {
 
         {activePage === 'search' && (
           <SearchResultsPage
+            key={searchQuery}
             searchQuery={searchQuery}
             results={results}
             sortBy={sortBy}

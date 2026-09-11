@@ -2,15 +2,19 @@
 import { searchSchemes, SCHEMES_DATA } from '../data/schemesData';
 
 export async function fetchSchemeResults(query = '', sortBy = 'score-desc') {
+  const queryParam = encodeURIComponent(query || '');
+
   try {
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 4000);
+    const timeoutId = setTimeout(() => controller.abort(), 3500);
 
-    const url = `/api/search?q=${encodeURIComponent(query)}`;
-    const response = await fetch(url, { signal: controller.signal });
+    // Clean relative path without hardcoded hosts or IPs
+    const response = await fetch(`/api/search?q=${queryParam}`, { signal: controller.signal });
     clearTimeout(timeoutId);
 
-    if (response.ok) {
+    // Verify response is JSON (not HTML SPA fallback)
+    const contentType = response.headers.get('content-type') || '';
+    if (response.ok && contentType.includes('application/json')) {
       const data = await response.json();
       let results = data.results || [];
 
@@ -28,11 +32,11 @@ export async function fetchSchemeResults(query = '', sortBy = 'score-desc') {
         results: results
       };
     }
-  } catch (err) {
-    console.warn('API fetch failed or offline, using fallback:', err.message);
+  } catch {
+    // Continue to local retrieval engine
   }
 
-  // Graceful fallback to client dataset
+  // Graceful offline fallback to full 3,400 schemes dataset from CSV
   const fallbackResults = searchSchemes(query, { sortBy });
   return {
     source: 'local',
