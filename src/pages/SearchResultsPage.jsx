@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import {
   ArrowLeft,
   Search,
@@ -13,7 +13,10 @@ import {
   ArrowRight,
   User,
   MapPin,
-  X
+  X,
+  Target,
+  Sparkles,
+  Layers
 } from 'lucide-react';
 
 export default function SearchResultsPage({
@@ -26,11 +29,44 @@ export default function SearchResultsPage({
   onExecuteSearch
 }) {
   const [searchInput, setSearchInput] = useState(searchQuery || 'scholarship for students');
+  const [activeTypeFilter, setActiveTypeFilter] = useState('all');
 
   const handleSearchSubmit = (e) => {
     e.preventDefault();
     onExecuteSearch(searchInput);
   };
+
+  // Group and count results by match type
+  const { exactMatches, similarMatches, relatedMatches, approxMatches } = useMemo(() => {
+    const exact = [];
+    const similar = [];
+    const related = [];
+    const approx = [];
+
+    results.forEach((s) => {
+      const type = s.matchType || (s.score >= 85 ? 'Exact Match' : s.score >= 70 ? 'Highly Similar' : s.score >= 55 ? 'Related Scheme' : 'Approximate Match');
+      if (type === 'Exact Match') exact.push(s);
+      else if (type === 'Highly Similar') similar.push(s);
+      else if (type === 'Related Scheme') related.push(s);
+      else approx.push(s);
+    });
+
+    return {
+      exactMatches: exact,
+      similarMatches: similar,
+      relatedMatches: related,
+      approxMatches: approx
+    };
+  }, [results]);
+
+  // Filter results by active relevance tab
+  const displayedResults = useMemo(() => {
+    if (activeTypeFilter === 'exact') return exactMatches;
+    if (activeTypeFilter === 'similar') return similarMatches;
+    if (activeTypeFilter === 'related') return relatedMatches;
+    if (activeTypeFilter === 'approx') return approxMatches;
+    return results;
+  }, [activeTypeFilter, results, exactMatches, similarMatches, relatedMatches, approxMatches]);
 
   const getSchemeIcon = (categoryKey, category) => {
     const cat = (categoryKey || category || '').toLowerCase();
@@ -48,6 +84,30 @@ export default function SearchResultsPage({
       return <HeartPulse size={26} className="text-teal-600" />;
     }
     return <Building2 size={26} className="text-blue-600" />;
+  };
+
+  const renderMatchBadge = (scheme) => {
+    const type = scheme.matchType || (scheme.score >= 85 ? 'Exact Match' : scheme.score >= 70 ? 'Highly Similar' : scheme.score >= 55 ? 'Related Scheme' : 'Approximate Match');
+    const score = scheme.score || scheme.matchScore || 85;
+
+    let badgeClass = 'match-pill-badge';
+    let label = `${score}% Match`;
+
+    if (type === 'Exact Match') {
+      badgeClass = 'match-pill-badge match-pill-exact';
+      label = `${score}% Exact Match`;
+    } else if (type === 'Highly Similar') {
+      badgeClass = 'match-pill-badge match-pill-similar';
+      label = `${score}% High Match`;
+    } else if (type === 'Related Scheme') {
+      badgeClass = 'match-pill-badge match-pill-related';
+      label = `${score}% Related`;
+    } else if (type === 'Approximate Match') {
+      badgeClass = 'match-pill-badge match-pill-approx';
+      label = `${score}% Approx`;
+    }
+
+    return <div className={badgeClass}>{label}</div>;
   };
 
   return (
@@ -69,7 +129,7 @@ export default function SearchResultsPage({
               <input
                 type="text"
                 className="results-input"
-                placeholder="Search schemes..."
+                placeholder="Search schemes by need, eligibility, or keywords..."
                 value={searchInput}
                 onChange={(e) => setSearchInput(e.target.value)}
               />
@@ -93,10 +153,61 @@ export default function SearchResultsPage({
           </form>
         </div>
 
+        {/* Multi-Level IR Relevance Filter Tabs */}
+        {results.length > 0 && (
+          <div className="relevance-tabs-bar">
+            <button
+              className={`relevance-tab ${activeTypeFilter === 'all' ? 'active' : ''}`}
+              onClick={() => setActiveTypeFilter('all')}
+            >
+              <Layers size={14} />
+              <span>All Results ({results.length})</span>
+            </button>
+
+            {exactMatches.length > 0 && (
+              <button
+                className={`relevance-tab tab-exact ${activeTypeFilter === 'exact' ? 'active' : ''}`}
+                onClick={() => setActiveTypeFilter('exact')}
+              >
+                <Target size={14} />
+                <span>Exact Matches ({exactMatches.length})</span>
+              </button>
+            )}
+
+            {similarMatches.length > 0 && (
+              <button
+                className={`relevance-tab tab-similar ${activeTypeFilter === 'similar' ? 'active' : ''}`}
+                onClick={() => setActiveTypeFilter('similar')}
+              >
+                <Sparkles size={14} />
+                <span>Highly Similar ({similarMatches.length})</span>
+              </button>
+            )}
+
+            {relatedMatches.length > 0 && (
+              <button
+                className={`relevance-tab tab-related ${activeTypeFilter === 'related' ? 'active' : ''}`}
+                onClick={() => setActiveTypeFilter('related')}
+              >
+                <span>Related Schemes ({relatedMatches.length})</span>
+              </button>
+            )}
+
+            {approxMatches.length > 0 && (
+              <button
+                className={`relevance-tab tab-approx ${activeTypeFilter === 'approx' ? 'active' : ''}`}
+                onClick={() => setActiveTypeFilter('approx')}
+              >
+                <span>Approximate ({approxMatches.length})</span>
+              </button>
+            )}
+          </div>
+        )}
+
         {/* Results Metadata & Sorting Row */}
         <div className="results-meta-row">
           <p className="results-count-text">
-            Showing <strong>{results.length} results</strong> for "{searchQuery || 'all schemes'}"
+            Showing <strong>{displayedResults.length}</strong> of <strong>{results.length} schemes</strong> for "{searchQuery || 'all schemes'}"
           </p>
 
           <div className="sort-by-wrapper">
@@ -106,7 +217,7 @@ export default function SearchResultsPage({
               value={sortBy || 'score-desc'}
               onChange={(e) => setSortBy(e.target.value)}
             >
-              <option value="score-desc">Best Match</option>
+              <option value="score-desc">Best Match (Relevance)</option>
               <option value="score-asc">Score: Low to High</option>
               <option value="name-asc">Alphabetical (A-Z)</option>
             </select>
@@ -116,13 +227,14 @@ export default function SearchResultsPage({
 
         {/* Scheme Result Cards List */}
         <div className="scheme-cards-list">
-          {results.length === 0 ? (
+          {displayedResults.length === 0 ? (
             <div className="empty-results-card">
-              <h3>No government schemes found matching your search</h3>
-              <p>Try modifying your search query to view relevant schemes.</p>
+              <h3>No schemes found in this category</h3>
+              <p>Try switching to "All Results" or enter a different query.</p>
               <button
                 className="btn-primary mt-4"
                 onClick={() => {
+                  setActiveTypeFilter('all');
                   setSearchInput('');
                   onExecuteSearch('');
                 }}
@@ -131,7 +243,7 @@ export default function SearchResultsPage({
               </button>
             </div>
           ) : (
-            results.map((scheme) => (
+            displayedResults.map((scheme) => (
               <div key={scheme.id} className="scheme-result-card">
                 <div className="scheme-card-inner">
                   {/* Left Column Icon */}
@@ -143,7 +255,7 @@ export default function SearchResultsPage({
 
                   {/* Main Info Column */}
                   <div className="scheme-info-col">
-                    {/* Header line: Title & Badge */}
+                    {/* Header line: Title & Badges */}
                     <div className="scheme-title-wrap">
                       <div className="scheme-title-and-badge">
                         <h2
@@ -157,10 +269,8 @@ export default function SearchResultsPage({
                         </span>
                       </div>
 
-                      {/* Top-Right Match Percentage Badge */}
-                      <div className="match-pill-badge">
-                        {scheme.score}% Match
-                      </div>
+                      {/* Top-Right Multi-Level Match Badge */}
+                      {renderMatchBadge(scheme)}
                     </div>
 
                     {/* Description */}
@@ -173,8 +283,8 @@ export default function SearchResultsPage({
                       <div className="meta-item">
                         <User size={15} className="meta-icon" />
                         <span>
-                          <strong>Eligibility:</strong> {scheme.quickSummary.eligibility}
-                          {scheme.familyIncomeLimit && scheme.familyIncomeLimit !== "No specific income limit" && (
+                          <strong>Eligibility:</strong> {scheme.quickSummary?.eligibility || scheme.targetBeneficiaries}
+                          {scheme.familyIncomeLimit && scheme.familyIncomeLimit !== "No specific income limit" && scheme.familyIncomeLimit !== "As per scheme criteria" && (
                             <> | Family income: {scheme.familyIncomeLimit.replace(' per annum', '')}</>
                           )}
                         </span>

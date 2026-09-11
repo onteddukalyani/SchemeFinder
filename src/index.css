@@ -532,76 +532,86 @@ input, select, textarea {
   background-color: var(--color-primary-hover);
 }
 
-.filters-trigger-btn {
-  background-color: #FFFFFF;
-  border: 1px solid var(--color-border);
-  color: var(--color-text-main);
-  font-size: 0.9rem;
-  font-weight: 600;
+/* Multi-Level IR Relevance Tabs Bar */
+.relevance-tabs-bar {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 0.5rem;
-  padding: 0.65rem 1.15rem;
-  border-radius: var(--radius-md);
-  box-shadow: 0 2px 6px rgba(15, 35, 56, 0.04);
+  margin-bottom: 1.25rem;
 }
 
-.filters-trigger-btn:hover {
-  border-color: #CBD5E1;
+.relevance-tab {
+  background-color: #FFFFFF;
+  border: 1px solid var(--color-border);
+  color: var(--color-text-secondary);
+  font-size: 0.84rem;
+  font-weight: 600;
+  padding: 0.45rem 0.9rem;
+  border-radius: 50px;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  box-shadow: 0 1px 4px rgba(15, 35, 56, 0.03);
+  transition: all 0.2s ease;
+}
+
+.relevance-tab:hover {
+  border-color: #BFDBFE;
+  color: var(--color-primary);
   background-color: #F8FAFC;
 }
 
-/* Integrated Quick Filters Row */
-.integrated-filters-bar {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 1rem;
-  margin-bottom: 1.5rem;
-}
-
-.quick-filter-item {
-  display: flex;
-  flex-direction: column;
-  gap: 0.35rem;
-}
-
-.quick-filter-label {
-  font-size: 0.8rem;
-  font-weight: 600;
-  color: var(--color-text-secondary);
-}
-
-.quick-select-wrap {
-  position: relative;
-  width: 100%;
-}
-
-.quick-filter-select {
-  width: 100%;
-  appearance: none;
-  background-color: #FFFFFF;
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-md);
-  padding: 0.6rem 2rem 0.6rem 0.85rem;
-  font-size: 0.88rem;
-  color: var(--color-text-main);
-  outline: none;
-  transition: all 0.2s ease;
-  cursor: pointer;
-}
-
-.quick-filter-select:focus {
+.relevance-tab.active {
+  background-color: var(--color-primary);
   border-color: var(--color-primary);
-  box-shadow: 0 0 0 3px rgba(0, 102, 255, 0.1);
+  color: #FFFFFF;
+  box-shadow: 0 4px 12px rgba(0, 102, 255, 0.25);
 }
 
-.quick-select-arrow {
-  position: absolute;
-  right: 0.75rem;
-  top: 50%;
-  transform: translateY(-50%);
-  color: var(--color-text-secondary);
-  pointer-events: none;
+.relevance-tab.tab-exact.active {
+  background-color: #059669;
+  border-color: #059669;
+}
+
+.relevance-tab.tab-similar.active {
+  background-color: #0284C7;
+  border-color: #0284C7;
+}
+
+.relevance-tab.tab-related.active {
+  background-color: #4F46E5;
+  border-color: #4F46E5;
+}
+
+.relevance-tab.tab-approx.active {
+  background-color: #64748B;
+  border-color: #64748B;
+}
+
+/* Match Pill Badges */
+.match-pill-exact {
+  background-color: #E6F8EF;
+  color: #059669;
+  border: 1px solid #BAEED5;
+}
+
+.match-pill-similar {
+  background-color: #E0F2FE;
+  color: #0284C7;
+  border: 1px solid #BAE6FD;
+}
+
+.match-pill-related {
+  background-color: #EEF2FF;
+  color: #4F46E5;
+  border: 1px solid #C7D2FE;
+}
+
+.match-pill-approx {
+  background-color: #F1F5F9;
+  color: #64748B;
+  border: 1px solid #CBD5E1;
 }
 
 /* Results Metadata and Sorting */
