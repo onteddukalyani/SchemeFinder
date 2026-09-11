@@ -13,10 +13,22 @@ export const CATEGORY_TILES = [
   { id: "All Categories", label: "All Categories", icon: "Grid", color: "#0284C7", bg: "#EBF3FF" },
 ];
 
-// Token-based TF-IDF simulation for instant client-side retrieval across all 3,400 schemes
+const STOP_WORDS = new Set(['for', 'the', 'and', 'in', 'of', 'to', 'a', 'an', 'on', 'with', 'by', 'at', 'from', 'is', 'are', 'as']);
+
+const INDIAN_STATES = new Set([
+  'andhra', 'arunachal', 'assam', 'bihar', 'chhattisgarh', 'goa', 'gujarat',
+  'haryana', 'himachal', 'jharkhand', 'karnataka', 'kerala', 'madhya pradesh',
+  'maharashtra', 'manipur', 'meghalaya', 'mizoram', 'nagaland', 'odisha',
+  'punjab', 'rajasthan', 'sikkim', 'tamil nadu', 'telangana', 'tripura',
+  'uttar pradesh', 'uttarakhand', 'west bengal', 'delhi', 'jammu', 'kashmir', 'ladakh', 'puducherry'
+]);
+
+// Token-based TF-IDF & Strict Relevance Engine for instant client-side retrieval across all 3,400 schemes
 export function searchSchemes(query = "", options = {}) {
   const cleanQuery = (query || "").toLowerCase().trim();
-  const queryTokens = cleanQuery.split(/\s+/).filter((t) => t.length > 1);
+  const rawTokens = cleanQuery.split(/\s+/).filter((t) => t.length > 1);
+  const meaningfulTokens = rawTokens.filter((t) => !STOP_WORDS.has(t));
+  const queryTokens = meaningfulTokens.length > 0 ? meaningfulTokens : rawTokens;
 
   if (!cleanQuery || queryTokens.length === 0) {
     // Return all schemes sorted by default
@@ -25,6 +37,18 @@ export function searchSchemes(query = "", options = {}) {
       score: 85,
       matchType: idx < 20 ? "Latest" : "Approximate Match"
     }));
+  }
+
+  // Identify state in query if present
+  let targetState = null;
+  for (const t of queryTokens) {
+    for (const state of INDIAN_STATES) {
+      if (state.includes(t) || t.includes(state)) {
+        targetState = state;
+        break;
+      }
+    }
+    if (targetState) break;
   }
 
   const scoredSchemes = [];
@@ -36,61 +60,132 @@ export function searchSchemes(query = "", options = {}) {
     const tagsLower = Array.isArray(s.tags) ? s.tags.join(" ").toLowerCase() : (s.tags || "").toLowerCase();
     const categoryLower = (s.category || "").toLowerCase();
     const eligibilityLower = (s.quickSummary?.eligibility || "").toLowerCase();
+    const benefitsLower = (s.quickSummary?.benefits || "").toLowerCase();
+    const stateLower = (s.state || "").toLowerCase();
+    const levelLower = (s.offeredBy || s.quickSummary?.level || "").toLowerCase();
+    const fullDocText = `${nameLower} ${tagsLower} ${categoryLower} ${stateLower} ${levelLower} ${detailsLower} ${eligibilityLower} ${benefitsLower}`;
 
-    let tokenHits = 0;
-    let titleHits = 0;
-    let tagHits = 0;
+    const isCentral = levelLower.includes('central') || stateLower.includes('all india') || nameLower.includes('central') || nameLower.includes('national');
+
+    let distinctTokensHit = 0;
+    let titleTokensHit = 0;
+    let tagTokensHit = 0;
+    let rawHits = 0;
 
     for (let t = 0; t < queryTokens.length; t++) {
       const tok = queryTokens[t];
+      let tokenPresentInDoc = false;
+
       if (nameLower.includes(tok)) {
-        titleHits++;
-        tokenHits += 3;
-      } else if (tagHits < 3 && tagsLower.includes(tok)) {
-        tagHits++;
-        tokenHits += 2;
-      } else if (categoryLower.includes(tok)) {
-        tokenHits += 2;
-      } else if (detailsLower.includes(tok) || eligibilityLower.includes(tok)) {
-        tokenHits += 1;
+        titleTokensHit++;
+        tokenPresentInDoc = true;
+        rawHits += 3;
+      }
+      if (tagsLower.includes(tok)) {
+        tagTokensHit++;
+        tokenPresentInDoc = true;
+        rawHits += 2;
+      }
+      if (categoryLower.includes(tok) || stateLower.includes(tok)) {
+        tokenPresentInDoc = true;
+        rawHits += 2;
+      }
+      if (detailsLower.includes(tok) || eligibilityLower.includes(tok) || benefitsLower.includes(tok)) {
+        tokenPresentInDoc = true;
+        rawHits += 1;
+      }
+
+      if (tokenPresentInDoc) {
+        distinctTokensHit++;
       }
     }
 
-    if (tokenHits > 0) {
+    // Strict Relevance Filter
+    if (targetState) {
+      const isTargetState = fullDocText.includes(targetState);
+      let isConflictingOtherState = false;
+      for (const st of INDIAN_STATES) {
+        if (st !== targetState && (nameLower.includes(st) || tagsLower.includes(st))) {
+          isConflictingOtherState = true;
+          break;
+        }
+      }
+
+      if (isConflictingOtherState && !isTargetState) {
+        continue;
+      }
+
+      const nonStateTokens = queryTokens.filter((t) => !targetState.includes(t) && !t.includes(targetState));
+      if (nonStateTokens.length > 0) {
+        const hasIntent = nonStateTokens.some((t) => fullDocText.includes(t));
+        if (!hasIntent) continue;
+        if (!isTargetState && !isCentral) continue;
+      }
+    } else {
+      if (queryTokens.length > 1) {
+        if (distinctTokensHit < Math.min(2, queryTokens.length) && titleTokensHit === 0) {
+          continue;
+        }
+      } else {
+        if (distinctTokensHit === 0) {
+          continue;
+        }
+      }
+    }
+
+    if (distinctTokensHit > 0) {
       let matchScore;
       let matchType;
+      let rankScore;
 
-      if (titleHits === queryTokens.length) {
-        matchScore = Math.min(99, 90 + titleHits * 3);
+      const allTokensMatch = distinctTokensHit === queryTokens.length;
+
+      if (queryTokens.length > 1 && allTokensMatch) {
+        if (titleTokensHit >= 1) {
+          matchScore = Math.min(99, 93 + titleTokensHit * 2);
+          matchType = "Exact Match";
+          rankScore = 200 + titleTokensHit * 10 + rawHits;
+        } else {
+          matchScore = Math.min(94, 88 + rawHits);
+          matchType = "Highly Similar";
+          rankScore = 150 + rawHits;
+        }
+      } else if (queryTokens.length === 1 && (titleTokensHit >= 1 || tagTokensHit >= 1)) {
+        matchScore = Math.min(99, 90 + titleTokensHit * 3 + tagTokensHit);
         matchType = "Exact Match";
-      } else if (titleHits > 0 || tagHits > 0) {
-        matchScore = Math.min(92, 75 + tokenHits * 2);
+        rankScore = 180 + rawHits;
+      } else if (titleTokensHit >= 1 || tagTokensHit >= 1 || distinctTokensHit >= 2) {
+        matchScore = Math.min(89, 75 + rawHits * 2);
         matchType = "Highly Similar";
-      } else if (tokenHits >= 2) {
-        matchScore = Math.min(74, 60 + tokenHits * 2);
+        rankScore = 100 + rawHits;
+      } else if (distinctTokensHit >= 1) {
+        matchScore = Math.min(74, 60 + rawHits);
         matchType = "Related Scheme";
+        rankScore = 50 + rawHits;
       } else {
-        matchScore = Math.min(59, 45 + tokenHits * 5);
+        matchScore = Math.min(59, 45 + rawHits);
         matchType = "Approximate Match";
+        rankScore = 10 + rawHits;
       }
 
       scoredSchemes.push({
         ...s,
         score: matchScore,
         matchType: matchType,
-        _hits: tokenHits
+        _rankScore: rankScore,
+        _hits: rawHits
       });
     }
   }
 
-  // Sort by relevance score desc
+  // Sort by relevance rank score desc
   const sortBy = options.sortBy || "score-desc";
   if (sortBy === "score-asc") {
     scoredSchemes.sort((a, b) => a.score - b.score);
   } else if (sortBy === "name-asc") {
     scoredSchemes.sort((a, b) => a.name.localeCompare(b.name));
   } else {
-    scoredSchemes.sort((a, b) => b.score - a.score || b._hits - a._hits);
+    scoredSchemes.sort((a, b) => b._rankScore - a._rankScore || b.score - a.score || b._hits - a._hits);
   }
 
   return scoredSchemes;

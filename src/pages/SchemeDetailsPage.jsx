@@ -15,8 +15,9 @@ import {
   Landmark,
   Award
 } from 'lucide-react';
+import HighlightedText from '../components/HighlightedText';
 
-export default function SchemeDetailsPage({ scheme, onBack }) {
+export default function SchemeDetailsPage({ scheme, searchQuery = '', onBack }) {
   const [activeTab, setActiveTab] = useState('overview');
 
   if (!scheme) {
@@ -75,10 +76,14 @@ export default function SchemeDetailsPage({ scheme, onBack }) {
               </div>
               <div className="scheme-header-titles">
                 <div className="scheme-title-row">
-                  <h1 className="scheme-main-title">{scheme.name}</h1>
+                  <h1 className="scheme-main-title">
+                    <HighlightedText text={scheme.name} query={searchQuery} />
+                  </h1>
                 </div>
                 <div className="scheme-tag-row">
-                  <span className="category-pill-badge">{scheme.category}</span>
+                  <span className="category-pill-badge">
+                    <HighlightedText text={scheme.category} query={searchQuery} />
+                  </span>
                 </div>
               </div>
             </div>
@@ -90,7 +95,7 @@ export default function SchemeDetailsPage({ scheme, onBack }) {
           </div>
 
           <p className="scheme-header-description">
-            {scheme.fullDescription || scheme.shortDescription}
+            <HighlightedText text={scheme.fullDescription || scheme.shortDescription} query={searchQuery} />
           </p>
 
           {/* 3 Info Columns matching design */}
@@ -102,9 +107,13 @@ export default function SchemeDetailsPage({ scheme, onBack }) {
               </div>
               <div className="info-col-text">
                 <span className="info-col-label">Department</span>
-                <span className="info-col-value font-medium">{scheme.department || scheme.category}</span>
+                <span className="info-col-value font-medium">
+                  <HighlightedText text={scheme.department || scheme.category} query={searchQuery} />
+                </span>
                 {scheme.ministry && scheme.ministry !== scheme.department && (
-                  <span className="info-col-sub">{scheme.ministry}</span>
+                  <span className="info-col-sub">
+                    <HighlightedText text={scheme.ministry} query={searchQuery} />
+                  </span>
                 )}
               </div>
             </div>
@@ -166,15 +175,21 @@ export default function SchemeDetailsPage({ scheme, onBack }) {
                 <div className="scheme-details-table">
                   <div className="detail-row">
                     <span className="detail-key">Name of the Scheme</span>
-                    <span className="detail-val font-semibold">{scheme.name}</span>
+                    <span className="detail-val font-semibold">
+                      <HighlightedText text={scheme.name} query={searchQuery} />
+                    </span>
                   </div>
                   <div className="detail-row">
                     <span className="detail-key">Category</span>
-                    <span className="detail-val">{scheme.category}</span>
+                    <span className="detail-val">
+                      <HighlightedText text={scheme.category} query={searchQuery} />
+                    </span>
                   </div>
                   <div className="detail-row">
                     <span className="detail-key">Target Beneficiaries</span>
-                    <span className="detail-val">{scheme.targetBeneficiaries || scheme.category}</span>
+                    <span className="detail-val">
+                      <HighlightedText text={scheme.targetBeneficiaries || scheme.category} query={searchQuery} />
+                    </span>
                   </div>
                   <div className="detail-row">
                     <span className="detail-key">Family Income Limit</span>
@@ -201,7 +216,9 @@ export default function SchemeDetailsPage({ scheme, onBack }) {
                       {scheme.overview.highlights.map((h, i) => (
                         <li key={i}>
                           <CheckCircle2 size={16} className="text-blue-600 flex-shrink-0" />
-                          <span>{h}</span>
+                          <span>
+                            <HighlightedText text={h} query={searchQuery} />
+                          </span>
                         </li>
                       ))}
                     </ul>
@@ -231,7 +248,9 @@ export default function SchemeDetailsPage({ scheme, onBack }) {
                   {(scheme.eligibilityDetails || ['Open to eligible citizens meeting prescribed guidelines.']).map((criterion, idx) => (
                     <div key={idx} className="criterion-card">
                       <div className="criterion-num">{idx + 1}</div>
-                      <p className="criterion-text">{criterion}</p>
+                      <p className="criterion-text">
+                        <HighlightedText text={criterion} query={searchQuery} />
+                      </p>
                     </div>
                   ))}
                 </div>
@@ -246,7 +265,9 @@ export default function SchemeDetailsPage({ scheme, onBack }) {
                   {(scheme.benefitsDetails || ['Direct financial subsidy or welfare assistance as per government guidelines.']).map((benefit, idx) => (
                     <div key={idx} className="benefit-item">
                       <CheckCircle2 size={18} className="text-emerald-600 flex-shrink-0" />
-                      <p className="benefit-text">{benefit}</p>
+                      <p className="benefit-text">
+                        <HighlightedText text={benefit} query={searchQuery} />
+                      </p>
                     </div>
                   ))}
                 </div>
@@ -263,7 +284,9 @@ export default function SchemeDetailsPage({ scheme, onBack }) {
                       <div className="step-badge">Step {stepObj.step || sIdx + 1}</div>
                       <div className="step-content">
                         <h4 className="step-title">{stepObj.title}</h4>
-                        <p className="step-desc">{stepObj.desc}</p>
+                        <p className="step-desc">
+                          <HighlightedText text={stepObj.desc} query={searchQuery} />
+                        </p>
                       </div>
                     </div>
                   ))}
@@ -279,7 +302,9 @@ export default function SchemeDetailsPage({ scheme, onBack }) {
                   {(scheme.documentsRequired || ['Aadhaar Card / ID Proof', 'Income / Category Certificate', 'Bank Passbook']).map((doc, idx) => (
                     <div key={idx} className="doc-card">
                       <FileText size={18} className="text-blue-600 flex-shrink-0" />
-                      <span className="doc-title">{doc}</span>
+                      <span className="doc-title">
+                        <HighlightedText text={doc} query={searchQuery} />
+                      </span>
                     </div>
                   ))}
                 </div>
@@ -298,7 +323,9 @@ export default function SchemeDetailsPage({ scheme, onBack }) {
                 </div>
                 <div className="summary-text">
                   <span className="summary-label">Eligibility</span>
-                  <p className="summary-value">{scheme.quickSummary?.eligibility || 'Eligible Applicants'}</p>
+                  <p className="summary-value">
+                    <HighlightedText text={scheme.quickSummary?.eligibility || 'Eligible Applicants'} query={searchQuery} />
+                  </p>
                 </div>
               </div>
 
@@ -308,7 +335,9 @@ export default function SchemeDetailsPage({ scheme, onBack }) {
                 </div>
                 <div className="summary-text">
                   <span className="summary-label">Benefits</span>
-                  <p className="summary-value">{scheme.quickSummary?.benefits || 'Financial / Welfare Grant'}</p>
+                  <p className="summary-value">
+                    <HighlightedText text={scheme.quickSummary?.benefits || 'Financial / Welfare Grant'} query={searchQuery} />
+                  </p>
                 </div>
               </div>
 
@@ -318,7 +347,9 @@ export default function SchemeDetailsPage({ scheme, onBack }) {
                 </div>
                 <div className="summary-text">
                   <span className="summary-label">Income Limit</span>
-                  <p className="summary-value">{scheme.quickSummary?.incomeLimit || scheme.familyIncomeLimit || 'As per scheme norms'}</p>
+                  <p className="summary-value">
+                    <HighlightedText text={scheme.quickSummary?.incomeLimit || scheme.familyIncomeLimit || 'As per scheme norms'} query={searchQuery} />
+                  </p>
                 </div>
               </div>
 
@@ -328,7 +359,9 @@ export default function SchemeDetailsPage({ scheme, onBack }) {
                 </div>
                 <div className="summary-text">
                   <span className="summary-label">Level</span>
-                  <p className="summary-value">{scheme.quickSummary?.level || scheme.offeredBy || 'Central / State Government'}</p>
+                  <p className="summary-value">
+                    <HighlightedText text={scheme.quickSummary?.level || scheme.offeredBy || 'Central / State Government'} query={searchQuery} />
+                  </p>
                 </div>
               </div>
             </div>

@@ -104,6 +104,7 @@ export default function App() {
         {activePage === 'details' && (
           <SchemeDetailsPage
             scheme={selectedScheme}
+            searchQuery={searchQuery}
             onBack={handleBackToResults}
           />
         )}

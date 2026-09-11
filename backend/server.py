@@ -40,6 +40,16 @@ search_engine: SchemeSearch = SchemeSearch(data)
 
 print(f"Retrieval Engine Ready! Indexed {len(data)} unique government schemes from dataset/updated_data.csv.")
 
+STOP_WORDS = {"for", "the", "and", "in", "of", "to", "a", "an", "on", "with", "by", "at", "from", "is", "are", "as"}
+
+INDIAN_STATES = {
+    "andhra", "arunachal", "assam", "bihar", "chhattisgarh", "goa", "gujarat",
+    "haryana", "himachal", "jharkhand", "karnataka", "kerala", "madhya pradesh",
+    "maharashtra", "manipur", "meghalaya", "mizoram", "nagaland", "odisha",
+    "punjab", "rajasthan", "sikkim", "tamil nadu", "telangana", "tripura",
+    "uttar pradesh", "uttarakhand", "west bengal", "delhi", "jammu", "kashmir", "ladakh", "puducherry"
+}
+
 
 @app.route("/api/health", methods=["GET"])
 def health():
@@ -58,11 +68,10 @@ def get_all_schemes():
     results: List[Dict[str, Any]] = []
     
     for _, row in cleaned_df.iterrows():
-        row_dict: Dict[str, Any] = dict(row)
+        row_dict = dict(row)
         name = str(row_dict.get("scheme_name", "")).strip()
-        if not name:
-            continue
-        results.append(format_scheme_row(row_dict, score=0.85, query_tokens=[]))
+        if name:
+            results.append(format_scheme_row(row_dict, score_pct=85, match_type="Latest", raw_score=0.85, query_tokens=[]))
     
     return jsonify({
         "total": len(results),
@@ -70,36 +79,10 @@ def get_all_schemes():
     })
 
 
-def format_scheme_row(row_dict: Dict[str, Any], score: float, query_tokens: List[str]) -> Dict[str, Any]:
+def format_scheme_row(row_dict: Dict[str, Any], score_pct: int, match_type: str, raw_score: float, query_tokens: List[str]) -> Dict[str, Any]:
     scheme_name = str(row_dict.get("scheme_name", "")).strip()
     slug = str(row_dict.get("slug", scheme_name)).strip()
-    
-    raw_score = float(score)
-    name_lower = scheme_name.lower()
     tags_lower = str(row_dict.get("tags", "")).lower()
-    details_lower = str(row_dict.get("details", "")).lower()
-
-    # Check for exact token presence in title or primary tags
-    exact_title_match = all(token in name_lower for token in query_tokens) if query_tokens else False
-    partial_title_match = any(token in name_lower for token in query_tokens) if query_tokens else False
-    exact_tag_match = any(token in tags_lower for token in query_tokens) if query_tokens else False
-    
-    # Compute intuitive relevance percentage
-    if not query_tokens:
-        match_percentage = 85
-        match_type = "Latest"
-    elif exact_title_match:
-        match_percentage = max(92, min(99, int(round(80 + raw_score * 35))))
-        match_type = "Exact Match"
-    elif partial_title_match or exact_tag_match or raw_score >= 0.20:
-        match_percentage = max(75, min(91, int(round(65 + raw_score * 35))))
-        match_type = "Highly Similar"
-    elif raw_score >= 0.05 or any(t in details_lower for t in query_tokens):
-        match_percentage = max(60, min(74, int(round(50 + raw_score * 30))))
-        match_type = "Related Scheme"
-    else:
-        match_percentage = max(45, min(59, int(round(40 + raw_score * 25))))
-        match_type = "Approximate Match"
 
     details = str(row_dict.get("details", ""))
     eligibility = str(row_dict.get("eligibility", ""))
@@ -122,7 +105,7 @@ def format_scheme_row(row_dict: Dict[str, Any], score: float, query_tokens: List
         category_key = "Farmers"
     elif any(k in cat_check for k in ["women", "girl", "mahila", "mother", "widow", "maternity", "shakti"]):
         category_key = "Women"
-    elif any(k in cat_check for k in ["unemploy", "skill", "job", "labor", "shram", "startup", "powerloom"]):
+    elif any(k in cat_check for k in ["unemploy", "skill", "job", "labor", "shram", "startup", "powerloom", "loan", "finance"]):
         category_key = "Unemployed"
     elif any(k in cat_check for k in ["senior", "pension", "elder", "old age"]):
         category_key = "Senior Citizens"
@@ -187,7 +170,7 @@ def format_scheme_row(row_dict: Dict[str, Any], score: float, query_tokens: List
         "name": scheme_name,
         "category": category,
         "categoryKey": category_key,
-        "score": match_percentage,
+        "score": score_pct,
         "rawScore": round(raw_score, 4),
         "matchType": match_type,
         "shortDescription": details[:220] + "..." if len(details) > 220 else (details or f"Government assistance initiative: {scheme_name}"),
@@ -227,7 +210,10 @@ def search():
     query_param = request.args.get("q", "")
     query = str(query_param).strip() if query_param else ""
     query_lower = query.lower()
-    query_tokens = [t for t in re.split(r"\s+", query_lower) if len(t) > 1]
+    raw_tokens = [t for t in re.split(r"\s+", query_lower) if len(t) > 1]
+    query_tokens = [t for t in raw_tokens if t not in STOP_WORDS]
+    if not query_tokens:
+        query_tokens = raw_tokens
 
     top_k_param = request.args.get("top_k")
     if top_k_param:
@@ -242,66 +228,117 @@ def search():
         # Return all schemes from the 3,400 dataset
         sample_df: pd.DataFrame = data.head(top_k).copy()
         sample_df["score"] = 0.85
-        results_df: pd.DataFrame = sample_df
-    else:
-        # Retrieve ranked matches using TF-IDF + Cosine Similarity
-        full_results = search_engine.search(query, top_k=min(top_k, len(data)))
-        
-        # Include schemes with positive similarity score
-        matching_mask = full_results["score"] > 0.0001
-        if matching_mask.any():
-            results_df = full_results[matching_mask].copy()
-            # If matches are fewer than 15, supplement with additional substring/category matches
-            if len(results_df) < 15 and query_tokens:
-                existing_names = set(results_df["scheme_name"].astype(str).str.lower())
-                additional_rows = []
-                for _, row in data.iterrows():
-                    r_name = str(row.get("scheme_name", "")).strip()
-                    r_text = f"{r_name} {row.get('tags', '')} {row.get('schemeCategory', '')} {row.get('details', '')}".lower()
-                    if any(tok in r_text for tok in query_tokens):
-                        if r_name.lower() not in existing_names:
-                            r_copy = row.copy()
-                            r_copy["score"] = 0.02
-                            additional_rows.append(r_copy)
-                            existing_names.add(r_name.lower())
-                if additional_rows:
-                    add_df = pd.DataFrame(additional_rows)
-                    results_df = pd.concat([results_df, add_df], ignore_index=True)
-        else:
-            # Fallback to keyword matching across the 3,400 dataset
-            fallback_rows = []
-            for _, row in data.iterrows():
-                r_name = str(row.get("scheme_name", "")).strip()
-                r_text = f"{r_name} {row.get('tags', '')} {row.get('schemeCategory', '')} {row.get('details', '')}".lower()
-                if any(tok in r_text for tok in query_tokens):
-                    r_copy = row.copy()
-                    r_copy["score"] = 0.05
-                    fallback_rows.append(r_copy)
-            
-            if fallback_rows:
-                results_df = pd.DataFrame(fallback_rows)
-            else:
-                results_df = full_results.head(20).copy()
+        results: List[Dict[str, Any]] = []
+        for _, row in sample_df.iterrows():
+            row_dict = dict(row)
+            name = str(row_dict.get("scheme_name", "")).strip()
+            if name:
+                results.append(format_scheme_row(row_dict, score_pct=85, match_type="Latest", raw_score=0.85, query_tokens=[]))
+        return jsonify({
+            "query": query,
+            "total": len(results),
+            "dataset_total": len(data),
+            "results": results
+        })
 
-    # Clean NaN values
-    cleaned_df: pd.DataFrame = results_df.fillna("")
+    # Identify state in query if present
+    state_in_query = [s for s in INDIAN_STATES if any(s in t or t in s for t in query_tokens)]
+    target_state = state_in_query[0] if state_in_query else None
 
-    results: List[Dict[str, Any]] = []
-    seen_ids: Set[str] = set()
+    # Retrieve candidate ranked matches using TF-IDF + Cosine Similarity
+    full_results = search_engine.search(query, top_k=len(data))
     
-    for _, row in cleaned_df.iterrows():
-        row_dict: Dict[str, Any] = dict(row)
-        scheme_name = str(row_dict.get("scheme_name", "")).strip()
-        slug = str(row_dict.get("slug", scheme_name)).strip()
-        
-        # Deduplication check for unique schemes
-        dedup_key = (slug or scheme_name).lower()
-        if dedup_key in seen_ids or not scheme_name:
-            continue
-        seen_ids.add(dedup_key)
+    # Filter candidates with positive TF-IDF score
+    matching_mask = full_results["score"] > 0.0001
+    matched_df = full_results[matching_mask].copy() if matching_mask.any() else full_results.head(50).copy()
 
-        score_val = float(row_dict.get("score", 0.0))
-        results.append(format_scheme_row(row_dict, score=score_val, query_tokens=query_tokens))
+    # Strict Relevance Filter & Scorer
+    relevant_rows = []
+    seen_ids: Set[str] = set()
+
+    for _, row in matched_df.iterrows():
+        row_dict = dict(row)
+        name = str(row_dict.get("scheme_name", "")).strip()
+        slug = str(row_dict.get("slug", name)).strip()
+        dedup_key = (slug or name).lower()
+        if not name or dedup_key in seen_ids:
+            continue
+
+        r_name = name.lower()
+        r_tags = str(row_dict.get("tags", "")).lower()
+        r_details = str(row_dict.get("details", "")).lower()
+        r_benefits = str(row_dict.get("benefits", "")).lower()
+        r_eligibility = str(row_dict.get("eligibility", "")).lower()
+        r_level = str(row_dict.get("level", "")).lower()
+        r_cat = str(row_dict.get("schemeCategory", "")).lower()
+        doc_text = f"{r_name} {r_tags} {r_cat} {r_level} {r_details} {r_benefits} {r_eligibility}"
+
+        tokens_in_doc = [t for t in query_tokens if t in doc_text]
+        tokens_in_title = [t for t in query_tokens if t in r_name]
+        tokens_in_tags = [t for t in query_tokens if t in r_tags]
+
+        hits = len(tokens_in_doc)
+        title_hits = len(tokens_in_title)
+        tag_hits = len(tokens_in_tags)
+
+        is_central = "central" in r_level or "all india" in r_level or "central" in r_name or "national" in r_name
+        base_tfidf = float(row_dict.get("score", 0.0))
+
+        # Strict Relevance Filtering
+        if target_state:
+            is_target_state = target_state in doc_text
+            other_states = [s for s in INDIAN_STATES if s != target_state and (s in r_name or s in r_tags or (s in r_level and not is_central))]
+            
+            # Reject if it explicitly belongs to another competing state
+            if other_states and not is_target_state:
+                continue
+
+            non_state_tokens = [t for t in query_tokens if target_state not in t and t not in target_state]
+            if non_state_tokens:
+                has_intent = any(t in doc_text for t in non_state_tokens)
+                if not has_intent:
+                    continue
+                if not (is_target_state or is_central):
+                    continue
+        else:
+            if len(query_tokens) > 1:
+                # Multi-word query: require at least 2 token hits OR full title match
+                if hits < min(2, len(query_tokens)) and not any(t in r_name for t in query_tokens):
+                    continue
+            else:
+                # Single token query: token must be present
+                if hits == 0:
+                    continue
+
+        # Rank Calculation
+        all_tokens_present = hits == len(query_tokens)
+        if len(query_tokens) > 1 and all_tokens_present:
+            rank = 1000 + (title_hits * 100) + (tag_hits * 50) + int(base_tfidf * 100)
+            match_type = "Exact Match" if title_hits >= 1 else "Highly Similar"
+            pct = max(90, min(99, int(round(88 + base_tfidf * 25))))
+        elif len(query_tokens) == 1 and (title_hits >= 1 or tag_hits >= 1):
+            rank = 900 + (title_hits * 50) + int(base_tfidf * 100)
+            match_type = "Exact Match"
+            pct = max(90, min(99, int(round(82 + base_tfidf * 30))))
+        elif title_hits >= 1:
+            rank = 500 + (title_hits * 50) + int(base_tfidf * 100)
+            match_type = "Highly Similar"
+            pct = max(78, min(90, int(round(72 + base_tfidf * 25))))
+        elif hits >= 2:
+            rank = 350 + int(base_tfidf * 100)
+            match_type = "Highly Similar"
+            pct = max(72, min(85, int(round(65 + base_tfidf * 25))))
+        else:
+            rank = 150 + int(base_tfidf * 100)
+            match_type = "Related Scheme"
+            pct = max(60, min(74, int(round(52 + base_tfidf * 25))))
+
+        seen_ids.add(dedup_key)
+        relevant_rows.append((rank, format_scheme_row(row_dict, score_pct=pct, match_type=match_type, raw_score=base_tfidf, query_tokens=query_tokens)))
+
+    # Sort strictly by relevance rank desc
+    relevant_rows.sort(key=lambda x: x[0], reverse=True)
+    results = [r[1] for r in relevant_rows]
 
     return jsonify({
         "query": query,

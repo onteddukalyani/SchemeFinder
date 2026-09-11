@@ -19,6 +19,7 @@ import {
   Layers,
   ChevronRight
 } from 'lucide-react';
+import HighlightedText from '../components/HighlightedText';
 
 export default function SearchResultsPage({
   searchQuery,
@@ -281,10 +282,10 @@ export default function SearchResultsPage({
                           className="scheme-card-title"
                           onClick={() => onSelectScheme(scheme)}
                         >
-                          {scheme.name}
+                          <HighlightedText text={scheme.name} query={searchQuery} />
                         </h2>
                         <span className="category-pill-badge">
-                          {scheme.category}
+                          <HighlightedText text={scheme.category} query={searchQuery} />
                         </span>
                       </div>
 
@@ -294,7 +295,7 @@ export default function SearchResultsPage({
 
                     {/* Description */}
                     <p className="scheme-card-desc">
-                      {scheme.shortDescription}
+                      <HighlightedText text={scheme.shortDescription} query={searchQuery} />
                     </p>
 
                     {/* Metadata Line */}
@@ -302,7 +303,11 @@ export default function SearchResultsPage({
                       <div className="meta-item">
                         <User size={15} className="meta-icon" />
                         <span>
-                          <strong>Eligibility:</strong> {scheme.quickSummary?.eligibility || scheme.targetBeneficiaries}
+                          <strong>Eligibility:</strong>{' '}
+                          <HighlightedText
+                            text={scheme.quickSummary?.eligibility || scheme.targetBeneficiaries}
+                            query={searchQuery}
+                          />
                           {scheme.familyIncomeLimit && scheme.familyIncomeLimit !== "No specific income limit" && scheme.familyIncomeLimit !== "As per scheme criteria" && (
                             <> | Family income: {scheme.familyIncomeLimit.replace(' per annum', '')}</>
                           )}
